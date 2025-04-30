@@ -3,6 +3,6 @@
 ## Notes: Tracks player consumables and buffs with a simple GUI
 ## Author: Claude
 ## Version: 1.0
-## SavedVariables: SpBuffTrackerDB
+## SavedVariables: SpBuffTracker
 
 SpBuffTracker.lua

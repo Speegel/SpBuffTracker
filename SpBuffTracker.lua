@@ -4,7 +4,7 @@
 
 -- Addon variables
 SpBuffTracker = {
-    version = "1.0",
+    version = "1.2",
     trackedBuffs = {},
     categories = {
         "Food",
@@ -14,51 +14,57 @@ SpBuffTracker = {
     },
     defaultBuffs = {
         ["Food"] = {
-            {name = "Well Fed", texture = "Interface\\Icons\\Spell_Misc_Food", priority = 1},
-            {name = "Dirge's Kickin' Chimaerok Chops", texture = "Interface\\Icons\\INV_Misc_Food_65", priority = 2},
-            {name = "Blessed Sunfruit", texture = "Interface\\Icons\\INV_Misc_Food_41", priority = 3},
+            {
+                name = "Well Fed",
+                texture = "Interface\\Icons\\Spell_Misc_Food",
+                priority = 1
+            },
+            {
+                name = "Dirge's Kickin' Chimaerok Chops",
+                texture = "Interface\\Icons\\INV_Misc_Food_65",
+                priority = 2
+            },
+            {
+                name = "Blessed Sunfruit",
+                texture = "Interface\\Icons\\INV_Misc_Food_41",
+                priority = 3
+            },
         },
         ["Potions"] = {
-            {name = "Greater Arcane Elixir", texture = "Interface\\Icons\\INV_Potion_25", priority = 1},
-            {name = "Elixir of the Mongoose", texture = "Interface\\Icons\\INV_Potion_32", priority = 2},
-            {name = "Flask of Supreme Power", texture = "Interface\\Icons\\INV_Potion_41", priority = 3},
-            {name = "Flask of the Titans", texture = "Interface\\Icons\\INV_Potion_62", priority = 4},
-            {name = "Mageblood Potion", texture = "Interface\\Icons\\INV_Potion_45", priority = 5},
+            { name = "Elixir of the Mongoose", texture = "Interface\\Icons\\INV_Potion_32", priority = 1 },
+            { name = "Flask of the Titans",    texture = "Interface\\Icons\\INV_Potion_62", priority = 2 },
         },
         ["Weapon Enchants"] = {
-            {name = "Sharpened", texture = "Interface\\Icons\\INV_Sword_20", priority = 1},
-            {name = "Flametongue", texture = "Interface\\Icons\\Spell_Fire_FlameTounge", priority = 2},
-            {name = "Windfury", texture = "Interface\\Icons\\Spell_Nature_Cyclone", priority = 3},
-            {name = "Deadly Poison", texture = "Interface\\Icons\\Ability_Rogue_DualWeild", priority = 4},
+            { name = "Sharpened",     texture = "Interface\\Icons\\INV_Sword_20",            priority = 1 },
+            { name = "Windfury",      texture = "Interface\\Icons\\Spell_Nature_Cyclone",    priority = 2 },
         },
         ["Auras"] = {
-            {name = "Arcane Intellect", texture = "Interface\\Icons\\Spell_Holy_MagicalSentry", priority = 1},
-            {name = "Power Word: Fortitude", texture = "Interface\\Icons\\Spell_Holy_WordFortitude", priority = 2},
-            {name = "Mark of the Wild", texture = "Interface\\Icons\\Spell_Nature_Regeneration", priority = 3},
-            {name = "Blessing of Kings", texture = "Interface\\Icons\\Spell_Magic_MageArmor", priority = 4},
-            {name = "Blessing of Might", texture = "Interface\\Icons\\Spell_Holy_FistOfJustice", priority = 5},
+            { name = "Arcane Intellect",      texture = "Interface\\Icons\\Spell_Holy_MagicalSentry",  priority = 1 },
+            { name = "Power Word: Fortitude", texture = "Interface\\Icons\\Spell_Holy_WordFortitude",  priority = 2 },
+            { name = "Mark of the Wild",      texture = "Interface\\Icons\\Spell_Nature_Regeneration", priority = 3 },
         },
     },
     -- UI elements
     frame = nil,
     categoryFrames = {},
     buffFrames = {},
-    -- Settings
-    settings = {
-        locked = false,
-        scale = 1.0,
-        showMissing = true,
-        showBuffTimer = true,
-        showIcons = true,
-        categoryVisibility = {},
-    },
+}
+
+-- Initialize settings table first
+SpBuffTracker.settings = {
+    locked = false,
+    scale = 1.0,
+    showMissing = true,
+    showBuffTimer = true,
+    showIcons = true,
+    categoryVisibility = {},
 }
 
 -- Initialize default settings
 for _, category in ipairs(SpBuffTracker.categories) do
     SpBuffTracker.settings.categoryVisibility[category] = true
     SpBuffTracker.trackedBuffs[category] = {}
-    
+
     -- Initialize with default buffs
     for _, buffInfo in ipairs(SpBuffTracker.defaultBuffs[category]) do
         table.insert(SpBuffTracker.trackedBuffs[category], {
@@ -85,8 +91,8 @@ function SpBuffTracker_SlashCommand(msg)
         SpBuffTracker_CreateUI() -- Refresh UI
     elseif msg == "reset" then
         SpBuffTracker_ResetPosition()
-    elseif msg:match("^scale (%d+%.?%d*)$") then
-        local scale = tonumber(msg:match("^scale (%d+%.?%d*)$"))
+    elseif string.match(msg, "^scale (%d+%.?%d*)$") then
+        local scale = tonumber(string.match(msg, "^scale (%d+%.?%d*)$"))
         if scale and scale > 0.5 and scale <= 2.0 then
             SpBuffTracker.settings.scale = scale
             SpBuffTracker_CreateUI() -- Refresh UI
@@ -112,8 +118,12 @@ end
 
 -- Create the buff tracker UI
 function SpBuffTracker_CreateUI()
+    -- Ensure settings are properly initialized
+    SpBuffTracker_EnsureSettings()
+
     -- Create main frame if it doesn't exist
     if not SpBuffTracker.frame then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # CREATING FRAME # - # -")
         SpBuffTracker.frame = CreateFrame("Frame", "SpBuffTrackerFrame", UIParent)
         SpBuffTracker.frame:SetWidth(200)
         SpBuffTracker.frame:SetHeight(30)
@@ -129,28 +139,28 @@ function SpBuffTracker_CreateUI()
         SpBuffTracker.frame:SetScript("OnDragStop", function()
             SpBuffTracker.frame:StopMovingOrSizing()
         end)
-        
+
         -- Title bar
         local titleBar = CreateFrame("Frame", nil, SpBuffTracker.frame)
         titleBar:SetHeight(20)
         titleBar:SetPoint("TOPLEFT", SpBuffTracker.frame, "TOPLEFT", 0, 0)
         titleBar:SetPoint("TOPRIGHT", SpBuffTracker.frame, "TOPRIGHT", 0, 0)
-        
+
         local titleBg = titleBar:CreateTexture(nil, "BACKGROUND")
         titleBg:SetAllPoints()
         titleBg:SetTexture(0, 0, 0, 0.5)
-        
+
         local titleText = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         titleText:SetPoint("CENTER", titleBar, "CENTER", 0, 0)
         titleText:SetText("SpBuffTracker")
-        
+
         -- Close button
         local closeButton = CreateFrame("Button", nil, titleBar, "UIPanelCloseButton")
         closeButton:SetPoint("TOPRIGHT", titleBar, "TOPRIGHT", 0, 0)
         closeButton:SetScript("OnClick", function()
             SpBuffTracker.frame:Hide()
         end)
-        
+
         -- Settings button
         local settingsButton = CreateFrame("Button", nil, titleBar)
         settingsButton:SetWidth(16)
@@ -161,15 +171,18 @@ function SpBuffTracker_CreateUI()
         settingsButton:SetScript("OnClick", function()
             SpBuffTracker_ToggleSettings()
         end)
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # FRAME CREATED # - # -")
     end
-    
+
+    -- DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # CREATING FRAME " .. SpBuffTracker.frame .. "# - # -")
+
     -- Clear existing category frames
     for _, frame in pairs(SpBuffTracker.categoryFrames) do
         frame:Hide()
         frame = nil
     end
     SpBuffTracker.categoryFrames = {}
-    
+
     -- Clear existing buff frames
     for _, frames in pairs(SpBuffTracker.buffFrames) do
         for _, frame in pairs(frames) do
@@ -178,29 +191,37 @@ function SpBuffTracker_CreateUI()
         end
     end
     SpBuffTracker.buffFrames = {}
-    
+
     -- Apply scale
     SpBuffTracker.frame:SetScale(SpBuffTracker.settings.scale)
-    
+
     -- Create category frames
     local prevFrame = SpBuffTracker.frame
     local totalHeight = 20 -- Title bar height
-    
+
     for _, category in ipairs(SpBuffTracker.categories) do
+        -- Make sure the category visibility is set (safety check)
+        
+        if SpBuffTracker.settings.categoryVisibility[category] == nil then
+            SpBuffTracker.settings.categoryVisibility[category] = true
+        end
+
+        local tempCategory = category
+
         if SpBuffTracker.settings.categoryVisibility[category] then
             local categoryFrame = CreateFrame("Frame", nil, SpBuffTracker.frame)
             categoryFrame:SetHeight(18)
             categoryFrame:SetPoint("TOPLEFT", prevFrame, "BOTTOMLEFT", 0, 0)
             categoryFrame:SetPoint("TOPRIGHT", prevFrame, "BOTTOMRIGHT", 0, 0)
-            
+
             local categoryBg = categoryFrame:CreateTexture(nil, "BACKGROUND")
             categoryBg:SetAllPoints()
             categoryBg:SetTexture(0.1, 0.1, 0.3, 0.5)
-            
+
             local categoryText = categoryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             categoryText:SetPoint("LEFT", categoryFrame, "LEFT", 5, 0)
             categoryText:SetText(category)
-            
+
             -- Toggle category visibility button
             local toggleButton = CreateFrame("Button", nil, categoryFrame)
             toggleButton:SetWidth(14)
@@ -209,52 +230,53 @@ function SpBuffTracker_CreateUI()
             toggleButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-UP")
             toggleButton:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
             toggleButton:SetScript("OnClick", function()
-                SpBuffTracker_ToggleCategory(category)
+                DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # Category " .. tempCategory .. " # - # -")
+                SpBuffTracker_ToggleCategory(tempCategory)
             end)
-            
+
             SpBuffTracker.categoryFrames[category] = categoryFrame
             prevFrame = categoryFrame
             totalHeight = totalHeight + 18
-            
+
             -- Create buff frames for this category
             SpBuffTracker.buffFrames[category] = {}
-            
+
             -- Sort buffs by priority
             table.sort(SpBuffTracker.trackedBuffs[category], function(a, b)
                 return a.priority < b.priority
             end)
-            
+
             for i, buffInfo in ipairs(SpBuffTracker.trackedBuffs[category]) do
                 local buffFrame = CreateFrame("Frame", nil, SpBuffTracker.frame)
                 buffFrame:SetHeight(20)
                 buffFrame:SetPoint("TOPLEFT", prevFrame, "BOTTOMLEFT", 0, 0)
                 buffFrame:SetPoint("TOPRIGHT", prevFrame, "BOTTOMRIGHT", 0, 0)
-                
+
                 local buffBg = buffFrame:CreateTexture(nil, "BACKGROUND")
                 buffBg:SetAllPoints()
                 buffBg:SetTexture(0, 0, 0, 0.3)
-                
-                if i % 2 == 0 then
+
+                if math.mod(i, 2) == 0 then
                     buffBg:SetTexture(0.1, 0.1, 0.1, 0.3)
                 end
-                
+
                 -- Buff icon
                 local buffIcon = buffFrame:CreateTexture(nil, "ARTWORK")
                 buffIcon:SetWidth(16)
                 buffIcon:SetHeight(16)
                 buffIcon:SetPoint("LEFT", buffFrame, "LEFT", 5, 0)
                 buffIcon:SetTexture(buffInfo.texture)
-                
+
                 -- Buff name
                 local buffName = buffFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
                 buffName:SetPoint("LEFT", buffIcon, "RIGHT", 5, 0)
                 buffName:SetText(buffInfo.name)
-                
+
                 -- Buff timer
                 local buffTimer = buffFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
                 buffTimer:SetPoint("RIGHT", buffFrame, "RIGHT", -5, 0)
                 buffTimer:SetText("")
-                
+
                 -- Buff status indicator
                 local statusTexture = buffFrame:CreateTexture(nil, "OVERLAY")
                 statusTexture:SetWidth(buffFrame:GetWidth())
@@ -262,30 +284,41 @@ function SpBuffTracker_CreateUI()
                 statusTexture:SetPoint("TOPLEFT", buffFrame, "TOPLEFT", 0, 0)
                 statusTexture:SetTexture(1, 0, 0, 0.1) -- Red for missing
                 statusTexture:Hide()
-                
+
                 -- Store references
                 buffFrame.icon = buffIcon
                 buffFrame.name = buffName
                 buffFrame.timer = buffTimer
                 buffFrame.status = statusTexture
                 buffFrame.buffInfo = buffInfo
-                
+
                 table.insert(SpBuffTracker.buffFrames[category], buffFrame)
                 prevFrame = buffFrame
                 totalHeight = totalHeight + 20
             end
         end
     end
-    
+
     -- Set the height of the main frame
     SpBuffTracker.frame:SetHeight(totalHeight)
-    
+
     -- Update buff status
     SpBuffTracker_UpdateBuffs()
 end
 
 -- Toggle category visibility
 function SpBuffTracker_ToggleCategory(category)
+    -- Make sure settings are initialized
+    SpBuffTracker_EnsureSettings()
+
+    -- DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # Category " .. category .. " # - # -")
+    -- DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # Visibility " .. tostring(SpBuffTracker.settings.categoryVisibility[category]) .. " # - # -")
+
+    -- if SpBuffTracker.settings.categoryVisibility[category] then
+    --     SpBuffTracker.settings.categoryVisibility[category] = false
+    -- else
+    --     SpBuffTracker.settings.categoryVisibility[category] = true
+    -- end
     SpBuffTracker.settings.categoryVisibility[category] = not SpBuffTracker.settings.categoryVisibility[category]
     SpBuffTracker_CreateUI() -- Refresh UI
 end
@@ -296,114 +329,122 @@ function SpBuffTracker_CreateSettingsPanel()
         SpBuffTracker.settingsFrame:Show()
         return
     end
-    
-    local frame = CreateFrame("Frame", "SpBuffTrackerSettingsFrame", UIParent)
-    frame:SetWidth(250)
-    frame:SetHeight(300)
-    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-    frame:SetBackdrop({
+
+    local settingsFrame = CreateFrame("Frame", "SpBuffTrackerSettingsFrame", UIParent)
+    settingsFrame:SetWidth(250)
+    settingsFrame:SetHeight(300)
+    settingsFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    settingsFrame:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
         tile = true,
         tileSize = 32,
         edgeSize = 32,
-        insets = {left = 11, right = 12, top = 12, bottom = 11}
+        insets = { left = 11, right = 12, top = 12, bottom = 11 }
     })
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", function()
-        frame:StartMoving()
+    settingsFrame:SetMovable(true)
+    settingsFrame:EnableMouse(true)
+    settingsFrame:RegisterForDrag("LeftButton")
+    settingsFrame:SetScript("OnDragStart", function()
+        settingsFrame:StartMoving()
     end)
-    frame:SetScript("OnDragStop", function()
-        frame:StopMovingOrSizing()
+    settingsFrame:SetScript("OnDragStop", function()
+        settingsFrame:StopMovingOrSizing()
     end)
-    
+
     -- Title
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", frame, "TOP", 0, -15)
+    local title = settingsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", settingsFrame, "TOP", 0, -15)
     title:SetText("SpBuffTracker Settings")
-    
+
     -- Close button
-    local closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -5, -5)
+    local closeButton = CreateFrame("Button", nil, settingsFrame, "UIPanelCloseButton")
+    closeButton:SetPoint("TOPRIGHT", settingsFrame, "TOPRIGHT", -5, -5)
     closeButton:SetScript("OnClick", function()
-        frame:Hide()
+        settingsFrame:Hide()
     end)
-    
+
     -- Show Missing Buffs option
-    local showMissingCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowMissingCheckbox", frame, "UICheckButtonTemplate")
-    showMissingCheckbox:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -40)
+    local showMissingCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowMissingCheckbox", settingsFrame,
+        "UICheckButtonTemplate")
+    showMissingCheckbox:SetPoint("TOPLEFT", settingsFrame, "TOPLEFT", 20, -40)
     showMissingCheckbox:SetChecked(SpBuffTracker.settings.showMissing)
-    getglobal(showMissingCheckbox:GetName().."Text"):SetText("Highlight Missing Buffs")
+    getglobal(showMissingCheckbox:GetName() .. "Text"):SetText("Highlight Missing Buffs")
     showMissingCheckbox:SetScript("OnClick", function()
         SpBuffTracker.settings.showMissing = showMissingCheckbox:GetChecked()
         SpBuffTracker_UpdateBuffs()
     end)
-    
+
     -- Show Buff Timer option
-    local showTimerCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowTimerCheckbox", frame, "UICheckButtonTemplate")
+    local showTimerCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowTimerCheckbox", settingsFrame, "UICheckButtonTemplate")
     showTimerCheckbox:SetPoint("TOPLEFT", showMissingCheckbox, "BOTTOMLEFT", 0, -10)
     showTimerCheckbox:SetChecked(SpBuffTracker.settings.showBuffTimer)
-    getglobal(showTimerCheckbox:GetName().."Text"):SetText("Show Buff Timer")
+    getglobal(showTimerCheckbox:GetName() .. "Text"):SetText("Show Buff Timer")
     showTimerCheckbox:SetScript("OnClick", function()
         SpBuffTracker.settings.showBuffTimer = showTimerCheckbox:GetChecked()
         SpBuffTracker_UpdateBuffs()
     end)
-    
+
     -- Show Icons option
-    local showIconsCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowIconsCheckbox", frame, "UICheckButtonTemplate")
+    local showIconsCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowIconsCheckbox", settingsFrame, "UICheckButtonTemplate")
     showIconsCheckbox:SetPoint("TOPLEFT", showTimerCheckbox, "BOTTOMLEFT", 0, -10)
     showIconsCheckbox:SetChecked(SpBuffTracker.settings.showIcons)
-    getglobal(showIconsCheckbox:GetName().."Text"):SetText("Show Buff Icons")
+    getglobal(showIconsCheckbox:GetName() .. "Text"):SetText("Show Buff Icons")
     showIconsCheckbox:SetScript("OnClick", function()
         SpBuffTracker.settings.showIcons = showIconsCheckbox:GetChecked()
         SpBuffTracker_CreateUI() -- Refresh UI
     end)
-    
+
     -- Scale slider
-    local scaleSlider = CreateFrame("Slider", "SpBuffTrackerScaleSlider", frame, "OptionsSliderTemplate")
+    local scaleSlider = CreateFrame("Slider", "SpBuffTrackerScaleSlider", settingsFrame, "OptionsSliderTemplate")
     scaleSlider:SetPoint("TOPLEFT", showIconsCheckbox, "BOTTOMLEFT", 0, -30)
     scaleSlider:SetWidth(200)
     scaleSlider:SetMinMaxValues(0.5, 2.0)
     scaleSlider:SetValueStep(0.1)
     scaleSlider:SetValue(SpBuffTracker.settings.scale)
-    getglobal(scaleSlider:GetName().."Text"):SetText("UI Scale")
-    getglobal(scaleSlider:GetName().."Low"):SetText("0.5")
-    getglobal(scaleSlider:GetName().."High"):SetText("2.0")
+    getglobal(scaleSlider:GetName() .. "Text"):SetText("UI Scale")
+    getglobal(scaleSlider:GetName() .. "Low"):SetText("0.5")
+    getglobal(scaleSlider:GetName() .. "High"):SetText("2.0")
     scaleSlider:SetScript("OnValueChanged", function()
         local scale = floor(scaleSlider:GetValue() * 10 + 0.5) / 10
         SpBuffTracker.settings.scale = scale
         SpBuffTracker_CreateUI() -- Refresh UI
     end)
-    
+
     -- Category visibility options
-    local categoryText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    local categoryText = settingsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     categoryText:SetPoint("TOPLEFT", scaleSlider, "BOTTOMLEFT", 0, -20)
     categoryText:SetText("Category Visibility:")
-    
+
     local prevElement = categoryText
     for i, category in ipairs(SpBuffTracker.categories) do
-        local checkbox = CreateFrame("CheckButton", "SpBuffTrackerCategory"..i.."Checkbox", frame, "UICheckButtonTemplate")
+        local checkbox = CreateFrame("CheckButton", "SpBuffTrackerCategory" .. i .. "Checkbox", settingsFrame,
+            "UICheckButtonTemplate")
         checkbox:SetPoint("TOPLEFT", prevElement, "BOTTOMLEFT", 0, -10)
         checkbox:SetChecked(SpBuffTracker.settings.categoryVisibility[category])
-        getglobal(checkbox:GetName().."Text"):SetText(category)
+        getglobal(checkbox:GetName() .. "Text"):SetText(category)
         checkbox:SetScript("OnClick", function()
             SpBuffTracker.settings.categoryVisibility[category] = checkbox:GetChecked()
             SpBuffTracker_CreateUI() -- Refresh UI
         end)
         prevElement = checkbox
     end
-    
-    SpBuffTracker.settingsFrame = frame
+
+    SpBuffTracker.settingsFrame = settingsFrame
 end
 
 -- Toggle settings panel
 function SpBuffTracker_ToggleSettings()
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - Toggle Settings # - # -")
     SpBuffTracker_CreateSettingsPanel()
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - Settings Toggled # - # -")
+
     if SpBuffTracker.settingsFrame:IsVisible() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - Settings Hide() # - # -")
+        -- SpBuffTracker.settingsFrame:Show()
         SpBuffTracker.settingsFrame:Hide()
     else
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - Settings Show() # - # -")
         SpBuffTracker.settingsFrame:Show()
     end
 end
@@ -413,10 +454,10 @@ function SpBuffTracker_FormatTime(seconds)
     if seconds <= 0 then
         return ""
     end
-    
+
     local minutes = floor(seconds / 60)
-    seconds = seconds % 60
-    
+    seconds = math.mod(seconds, 60)
+
     if minutes > 0 then
         return string.format("%d:%02d", minutes, seconds)
     else
@@ -426,22 +467,23 @@ end
 
 -- Check if a specific buff is active
 function SpBuffTracker_IsBuffActive(buffName)
-    local i = 1
-    local name, _, _, _, _, duration, expirationTime = UnitBuff("player", i)
-    
-    while name do
-        if name == buffName then
-            local timeLeft = 0
-            if expirationTime and expirationTime > 0 then
-                timeLeft = expirationTime - GetTime()
-                if timeLeft < 0 then timeLeft = 0 end
-            end
-            return true, timeLeft
-        end
-        i = i + 1
-        name, _, _, _, _, duration, expirationTime = UnitBuff("player", i)
-    end
-    
+	local buffIndex, untilCancelled
+	local i = 0
+	while true do
+		buffIndex, untilCancelled = GetPlayerBuff(i, "HELPFUL")
+		if buffIndex < 0 then break end
+
+		local timeleft = GetPlayerBuffTimeLeft(buffIndex)
+	
+        local buffTexture = GetPlayerBuffTexture(buffIndex)
+
+		-- local name = 
+		if buffTexture == buffName then
+            return true, timeleft
+		end
+		i = i + 1
+	end
+
     return false, 0
 end
 
@@ -458,15 +500,17 @@ end
 -- Update buff status
 function SpBuffTracker_UpdateBuffs()
     for category, buffs in pairs(SpBuffTracker.trackedBuffs) do
+        -- DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # Checking category ".. category .." # - # -")
         for i, buffInfo in ipairs(buffs) do
+            -- DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # Checking buff " .. buffInfo.name .. " # - # -")
             local isActive, timeLeft = false, 0
-            
+
             -- Check different types of buffs
             if category == "Weapon Enchants" then
                 -- For weapon enchants, we need to check both weapons
                 local hasMainEnchant, mainTimeLeft = SpBuffTracker_HasWeaponEnchant(1)
                 local hasOffEnchant, offTimeLeft = SpBuffTracker_HasWeaponEnchant(2)
-                
+
                 -- This is simplified - in a real addon you'd want to check the actual enchant type
                 if hasMainEnchant or hasOffEnchant then
                     isActive = true
@@ -474,31 +518,37 @@ function SpBuffTracker_UpdateBuffs()
                 end
             else
                 -- For normal buffs
-                isActive, timeLeft = SpBuffTracker_IsBuffActive(buffInfo.name)
+                isActive, timeLeft = SpBuffTracker_IsBuffActive(buffInfo.texture)
             end
-            
+
             -- Update buff info
             buffInfo.active = isActive
             buffInfo.timeLeft = timeLeft
-            
+
+            -- if buffInfo.name == "Mark of the Wild" then
+            --     -- -- DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # Buff " .. buffInfo.name .. " Detected # - # -")
+            --     -- DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " - # - # Buff " .. buffInfo.name .. " is " .. tostring(buffInfo.active) .. " timeleft is " .. buffInfo.timeLeft .. " # - # -")
+                
+            -- end
+
             -- Update buff frame if it exists
             if SpBuffTracker.buffFrames[category] and SpBuffTracker.buffFrames[category][i] then
                 local frame = SpBuffTracker.buffFrames[category][i]
-                
+
                 -- Show/hide icon based on settings
                 if SpBuffTracker.settings.showIcons then
                     frame.icon:Show()
                 else
                     frame.icon:Hide()
                 end
-                
+
                 -- Update timer text
                 if SpBuffTracker.settings.showBuffTimer and isActive and timeLeft > 0 then
                     frame.timer:SetText(SpBuffTracker_FormatTime(timeLeft))
                 else
                     frame.timer:SetText("")
                 end
-                
+
                 -- Update status indicator
                 if SpBuffTracker.settings.showMissing and not isActive then
                     frame.status:Show()
@@ -512,17 +562,21 @@ end
 
 -- Initialize the addon
 function SpBuffTracker_OnLoad()
+    -- Ensure settings are properly initialized
+    SpBuffTracker_EnsureSettings()
+
     -- Register slash commands
     SLASH_SPBUFFTRACKER1 = "/spbufftracker"
     SLASH_SPBUFFTRACKER2 = "/sbt"
     SlashCmdList["SPBUFFTRACKER"] = SpBuffTracker_SlashCommand
-    
+
     -- Register events
-    SpBuffTracker.frame = SpBuffTracker.frame or CreateFrame("Frame")
+    SpBuffTracker_CreateUI()
+    -- SpBuffTracker.frame = SpBuffTracker.frame or CreateFrame("Frame")
     SpBuffTracker.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
     SpBuffTracker.frame:RegisterEvent("UNIT_AURA")
     SpBuffTracker.frame:RegisterEvent("PLAYER_AURAS_CHANGED")
-    
+
     -- Event handler
     SpBuffTracker.frame:SetScript("OnEvent", function()
         if event == "PLAYER_ENTERING_WORLD" then
@@ -533,7 +587,7 @@ function SpBuffTracker_OnLoad()
             end
         end
     end)
-    
+
     -- Create the update timer
     local updateTimer = CreateFrame("Frame")
     updateTimer:SetScript("OnUpdate", function()
@@ -543,10 +597,38 @@ function SpBuffTracker_OnLoad()
             SpBuffTracker.lastUpdate = GetTime()
         end
     end)
-    
+
     -- Show welcome message
-    DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker v"..SpBuffTracker.version.." loaded. Type /sbt for help.")
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00SpBuffTracker|r v" .. SpBuffTracker.version .. " loaded. Type /sbt for help.")
+end
+
+-- Function to ensure settings are properly initialized
+function SpBuffTracker_EnsureSettings()
+    -- Make sure settings table exists
+    if not SpBuffTracker.settings then
+        SpBuffTracker.settings = {
+            locked = false,
+            scale = 1.0,
+            showMissing = true,
+            showBuffTimer = true,
+            showIcons = true,
+            categoryVisibility = {},
+        }
+    end
+    
+    -- Make sure categoryVisibility table exists
+    if not SpBuffTracker.settings.categoryVisibility then
+        SpBuffTracker.settings.categoryVisibility = {}
+    end
+    
+    -- Make sure all categories have visibility setting
+    for _, category in ipairs(SpBuffTracker.categories) do
+        if SpBuffTracker.settings.categoryVisibility[category] == nil then
+            SpBuffTracker.settings.categoryVisibility[category] = true
+        end
+    end
 end
 
 -- Run initialization
+SpBuffTracker_EnsureSettings()
 SpBuffTracker_OnLoad()
