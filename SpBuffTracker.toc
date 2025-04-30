@@ -1,8 +1,13 @@
 ## Interface: 11200
 ## Title: SpBuffTracker
 ## Notes: Tracks player consumables and buffs with a simple GUI
-## Author: Claude
-## Version: 1.0
+## Author: Spiegel
+## Version: 1.1
 ## SavedVariables: SpBuffTracker
 
-SpBuffTracker.lua
+# Core files
+SpBuffTracker_Core.lua
+SpBuffTracker_Buffs.lua
+SpBuffTracker_UI.lua
+SpBuffTracker_Settings.lua
+SpBuffTracker_Commands.lua
