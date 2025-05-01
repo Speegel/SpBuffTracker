@@ -38,7 +38,13 @@ function SpBuffTracker_SlashCommand(msg)
             DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker: Scale must be between 0.5 and 2.0")
         end
     elseif msg == "settings" or msg == "config" then
-        SpBuffTracker_ToggleSettings()
+        DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker: Opening settings panel")
+        -- Force recreation of the settings panel
+        if SpBuffTracker.settingsFrame then
+            SpBuffTracker.settingsFrame:Hide()
+            SpBuffTracker.settingsFrame = nil
+        end
+        SpBuffTracker_CreateSettingsPanel()
     else
         DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker commands:")
         DEFAULT_CHAT_FRAME:AddMessage("/sbt show - Show the tracker")

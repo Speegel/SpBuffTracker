@@ -17,35 +17,70 @@ function SpBuffTracker_FormatTime(seconds)
     end
 end
 
--- Check if a specific buff is active
+-- Check if a specific buff is active using vanilla WoW 1.12 buff functions
 function SpBuffTracker_IsBuffActive(buffName)
-    local i = 1
-    local name, _, _, _, _, duration, expirationTime = UnitBuff("player", i)
+    -- Loop through all player buffs
+    local i = 0
+    local maxBuffs = 32 -- Maximum number of buffs to check
     
-    while name do
-        if name == buffName then
-            local timeLeft = 0
-            if expirationTime and expirationTime > 0 then
-                timeLeft = expirationTime - GetTime()
-                if timeLeft < 0 then timeLeft = 0 end
-            end
-            return true, timeLeft
+    while i < maxBuffs do
+        local buffIndex = GetPlayerBuff(i, "HELPFUL")
+        if buffIndex < 0 then
+            break -- No more buffs
         end
+        
+        -- Get the buff's name
+        local texture = GetPlayerBuffTexture(buffIndex)
+        local currentBuffName = SpBuffTracker_GetBuffNameFromTexture(texture)
+        
+        -- If found the buff we're looking for
+        if currentBuffName == buffName then
+            local timeLeft = GetPlayerBuffTimeLeft(buffIndex)
+            return true, timeLeft or 0
+        end
+        
         i = i + 1
-        name, _, _, _, _, duration, expirationTime = UnitBuff("player", i)
     end
     
     return false, 0
 end
 
+-- Helper function to get buff name from texture
+function SpBuffTracker_GetBuffNameFromTexture(texture)
+    -- Look through our tracked buffs to find the one matching this texture
+    for _, category in ipairs(SpBuffTracker.categories) do
+        for _, buffInfo in ipairs(SpBuffTracker.trackedBuffs[category] or {}) do
+            if buffInfo.texture == texture then
+                return buffInfo.name
+            end
+        end
+    end
+    
+    -- Check default buffs as well
+    for _, category in ipairs(SpBuffTracker.categories) do
+        for _, buffInfo in ipairs(SpBuffTracker.defaultBuffs[category] or {}) do
+            if buffInfo.texture == texture then
+                return buffInfo.name
+            end
+        end
+    end
+    
+    return nil
+end
+
 -- Check if weapon has a temporary enchant
 function SpBuffTracker_HasWeaponEnchant(slot)
-    local hasEnchant, timeLeft = GetWeaponEnchantInfo()
-    if slot == 1 then
-        return hasEnchant, timeLeft or 0
-    else
-        return false, 0
+    -- In vanilla WoW, weapon buffs are checked differently
+    local hasMainHandEnchant, mainHandExpiration, mainHandCharges, 
+          hasOffHandEnchant, offHandExpiration, offHandCharges = GetWeaponEnchantInfo()
+    
+    if slot == 1 and hasMainHandEnchant then
+        return true, mainHandExpiration / 1000 -- Convert from ms to seconds
+    elseif slot == 2 and hasOffHandEnchant then
+        return true, offHandExpiration / 1000 -- Convert from ms to seconds
     end
+    
+    return false, 0
 end
 
 -- Update buff status

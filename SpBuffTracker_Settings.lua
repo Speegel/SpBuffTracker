@@ -3,9 +3,15 @@
 
 -- Create settings panel
 function SpBuffTracker_CreateSettingsPanel()
+    -- Make sure we initialize our variables first
+    -- SpBuffTracker_EnsureSettings()
+    
+    -- Debug message
+    DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker: Creating settings panel")
+    
+    -- Destroy old frame if it exists
     if SpBuffTracker.settingsFrame then
-        SpBuffTracker.settingsFrame:Show()
-        return
+        SpBuffTracker.settingsFrame:Hide()
     end
     
     -- Get frame position before creating settings
@@ -14,7 +20,10 @@ function SpBuffTracker_CreateSettingsPanel()
         mainFramePos.point, mainFramePos.relativeTo, mainFramePos.relativePoint, mainFramePos.x, mainFramePos.y = SpBuffTracker.frame:GetPoint()
     end
     
+    -- Create the main settings frame
     local frame = CreateFrame("Frame", "SpBuffTrackerSettingsFrame", UIParent)
+    SpBuffTracker.settingsFrame = frame
+    
     frame:SetWidth(300)
     frame:SetHeight(400)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
@@ -57,19 +66,15 @@ function SpBuffTracker_CreateSettingsPanel()
         SpBuffTracker_SaveProfile()
     end)
     
-    -- Scrollable content area
-    local scrollFrame = CreateFrame("ScrollFrame", "SpBuffTrackerSettingsScrollFrame", frame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -40)
-    scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -40, 20)
-    
-    local scrollChild = CreateFrame("Frame", "SpBuffTrackerSettingsScrollChild", scrollFrame)
-    scrollChild:SetWidth(scrollFrame:GetWidth())
-    scrollChild:SetHeight(600) -- Set initial height, will adjust as needed
-    scrollFrame:SetScrollChild(scrollChild)
+    -- Create content directly in frame instead of using a scroll frame for simplicity
+    -- First section - Display Options
+    local sectionTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    sectionTitle:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -40)
+    sectionTitle:SetText("Display Options:")
     
     -- Show Missing Buffs option
-    local showMissingCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowMissingCheckbox", scrollChild, "UICheckButtonTemplate")
-    showMissingCheckbox:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 5, -10)
+    local showMissingCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowMissingCheckbox", frame, "UICheckButtonTemplate")
+    showMissingCheckbox:SetPoint("TOPLEFT", sectionTitle, "BOTTOMLEFT", 10, -10)
     showMissingCheckbox:SetChecked(SpBuffTracker.settings.showMissing)
     getglobal(showMissingCheckbox:GetName().."Text"):SetText("Highlight Missing Buffs")
     showMissingCheckbox:SetScript("OnClick", function()
@@ -78,8 +83,8 @@ function SpBuffTracker_CreateSettingsPanel()
     end)
     
     -- Show Buff Timer option
-    local showTimerCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowTimerCheckbox", scrollChild, "UICheckButtonTemplate")
-    showTimerCheckbox:SetPoint("TOPLEFT", showMissingCheckbox, "BOTTOMLEFT", 0, -10)
+    local showTimerCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowTimerCheckbox", frame, "UICheckButtonTemplate")
+    showTimerCheckbox:SetPoint("TOPLEFT", showMissingCheckbox, "BOTTOMLEFT", 0, -5)
     showTimerCheckbox:SetChecked(SpBuffTracker.settings.showBuffTimer)
     getglobal(showTimerCheckbox:GetName().."Text"):SetText("Show Buff Timer")
     showTimerCheckbox:SetScript("OnClick", function()
@@ -88,8 +93,8 @@ function SpBuffTracker_CreateSettingsPanel()
     end)
     
     -- Show Icons option
-    local showIconsCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowIconsCheckbox", scrollChild, "UICheckButtonTemplate")
-    showIconsCheckbox:SetPoint("TOPLEFT", showTimerCheckbox, "BOTTOMLEFT", 0, -10)
+    local showIconsCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowIconsCheckbox", frame, "UICheckButtonTemplate")
+    showIconsCheckbox:SetPoint("TOPLEFT", showTimerCheckbox, "BOTTOMLEFT", 0, -5)
     showIconsCheckbox:SetChecked(SpBuffTracker.settings.showIcons)
     getglobal(showIconsCheckbox:GetName().."Text"):SetText("Show Buff Icons")
     showIconsCheckbox:SetScript("OnClick", function()
@@ -98,8 +103,8 @@ function SpBuffTracker_CreateSettingsPanel()
     end)
     
     -- Show Buff Names option
-    local showBuffNamesCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowBuffNamesCheckbox", scrollChild, "UICheckButtonTemplate")
-    showBuffNamesCheckbox:SetPoint("TOPLEFT", showIconsCheckbox, "BOTTOMLEFT", 0, -10)
+    local showBuffNamesCheckbox = CreateFrame("CheckButton", "SpBuffTrackerShowBuffNamesCheckbox", frame, "UICheckButtonTemplate")
+    showBuffNamesCheckbox:SetPoint("TOPLEFT", showIconsCheckbox, "BOTTOMLEFT", 0, -5)
     showBuffNamesCheckbox:SetChecked(SpBuffTracker.settings.showBuffNames)
     getglobal(showBuffNamesCheckbox:GetName().."Text"):SetText("Show Buff Names")
     showBuffNamesCheckbox:SetScript("OnClick", function()
@@ -108,8 +113,8 @@ function SpBuffTracker_CreateSettingsPanel()
     end)
     
     -- Hide in Combat option
-    local hideInCombatCheckbox = CreateFrame("CheckButton", "SpBuffTrackerHideInCombatCheckbox", scrollChild, "UICheckButtonTemplate")
-    hideInCombatCheckbox:SetPoint("TOPLEFT", showBuffNamesCheckbox, "BOTTOMLEFT", 0, -10)
+    local hideInCombatCheckbox = CreateFrame("CheckButton", "SpBuffTrackerHideInCombatCheckbox", frame, "UICheckButtonTemplate")
+    hideInCombatCheckbox:SetPoint("TOPLEFT", showBuffNamesCheckbox, "BOTTOMLEFT", 0, -5)
     hideInCombatCheckbox:SetChecked(SpBuffTracker.settings.hideInCombat)
     getglobal(hideInCombatCheckbox:GetName().."Text"):SetText("Hide in Combat")
     hideInCombatCheckbox:SetScript("OnClick", function()
@@ -118,18 +123,23 @@ function SpBuffTracker_CreateSettingsPanel()
     end)
     
     -- Scale slider
-    local scaleSlider = CreateFrame("Slider", "SpBuffTrackerScaleSlider", scrollChild, "OptionsSliderTemplate")
-    scaleSlider:SetPoint("TOPLEFT", hideInCombatCheckbox, "BOTTOMLEFT", 0, -30)
-    scaleSlider:SetWidth(scrollChild:GetWidth() - 30)
+    local scaleTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    scaleTitle:SetPoint("TOPLEFT", hideInCombatCheckbox, "BOTTOMLEFT", 0, -10)
+    scaleTitle:SetText("UI Scale:")
+    
+    local scaleSlider = CreateFrame("Slider", "SpBuffTrackerScaleSlider", frame, "OptionsSliderTemplate")
+    scaleSlider:SetPoint("TOPLEFT", scaleTitle, "BOTTOMLEFT", 5, -10)
+    scaleSlider:SetWidth(250)
     scaleSlider:SetMinMaxValues(0.5, 2.0)
     scaleSlider:SetValueStep(0.1)
     scaleSlider:SetValue(SpBuffTracker.settings.scale)
-    getglobal(scaleSlider:GetName().."Text"):SetText("UI Scale")
+    getglobal(scaleSlider:GetName().."Text"):SetText(SpBuffTracker.settings.scale)
     getglobal(scaleSlider:GetName().."Low"):SetText("0.5")
     getglobal(scaleSlider:GetName().."High"):SetText("2.0")
     scaleSlider:SetScript("OnValueChanged", function()
         local scale = math.floor(scaleSlider:GetValue() * 10 + 0.5) / 10
         SpBuffTracker.settings.scale = scale
+        getglobal(scaleSlider:GetName().."Text"):SetText(scale)
         SpBuffTracker_CreateUI() -- Refresh UI
         
         -- Maintain position after scaling
@@ -140,20 +150,21 @@ function SpBuffTracker_CreateSettingsPanel()
     end)
     
     -- Category visibility options
-    local categoryText = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    categoryText:SetPoint("TOPLEFT", scaleSlider, "BOTTOMLEFT", 0, -20)
+    local categoryText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    categoryText:SetPoint("TOPLEFT", scaleSlider, "BOTTOMLEFT", -5, -15)
     categoryText:SetText("Category Visibility:")
     
     local prevElement = categoryText
     for i, category in ipairs(SpBuffTracker.categories) do
-        local checkbox = CreateFrame("CheckButton", "SpBuffTrackerCategory"..i.."Checkbox", scrollChild, "UICheckButtonTemplate")
-        checkbox:SetPoint("TOPLEFT", prevElement, "BOTTOMLEFT", 0, -10)
+        local currentCategory = category
+        local checkbox = CreateFrame("CheckButton", "SpBuffTrackerCategory"..i.."Checkbox", frame, "UICheckButtonTemplate")
+        checkbox:SetPoint("TOPLEFT", prevElement, "BOTTOMLEFT", 0, 0)
         checkbox:SetChecked(SpBuffTracker.settings.categoryVisibility[category])
         getglobal(checkbox:GetName().."Text"):SetText(category)
         checkbox:SetScript("OnClick", function()
-            SpBuffTracker.settings.categoryVisibility[category] = checkbox:GetChecked()
-            SpBuffTracker_CreateUI() -- Refresh UI
-            
+            -- SpBuffTracker.settings.categoryVisibility[category] = checkbox:GetChecked()
+            -- SpBuffTracker_CreateUI() -- Refresh UI
+            SpBuffTracker_ToggleCategory(currentCategory)
             -- Maintain position after redrawing
             if mainFramePos.point then
                 SpBuffTracker.frame:ClearAllPoints()
@@ -163,62 +174,23 @@ function SpBuffTracker_CreateSettingsPanel()
         prevElement = checkbox
     end
     
-    -- Buff selection section
-    local buffSelectionText = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    buffSelectionText:SetPoint("TOPLEFT", prevElement, "BOTTOMLEFT", 0, -20)
-    buffSelectionText:SetText("Buff Selection:")
+    -- Show the frame
+    frame:Show()
     
-    prevElement = buffSelectionText
-    local totalHeight = 0
-    
-    -- Add each category and its buffs
-    for _, category in ipairs(SpBuffTracker.categories) do
-        -- Category header
-        local categoryHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        categoryHeader:SetPoint("TOPLEFT", prevElement, "BOTTOMLEFT", 0, -10)
-        categoryHeader:SetText(category)
-        prevElement = categoryHeader
-        totalHeight = totalHeight + 20
-        
-        -- Buffs in this category
-        for i, buffInfo in ipairs(SpBuffTracker.trackedBuffs[category]) do
-            local buffCheckbox = CreateFrame("CheckButton", "SpBuffTracker"..category..i.."Checkbox", scrollChild, "UICheckButtonTemplate")
-            buffCheckbox:SetPoint("TOPLEFT", prevElement, "BOTTOMLEFT", 15, -5) -- Indented
-            
-            -- Initialize enabled status if not set
-            if buffInfo.enabled == nil then
-                buffInfo.enabled = true
-            end
-            
-            buffCheckbox:SetChecked(buffInfo.enabled)
-            getglobal(buffCheckbox:GetName().."Text"):SetText(buffInfo.name)
-            buffCheckbox:SetScript("OnClick", function()
-                buffInfo.enabled = buffCheckbox:GetChecked()
-                SpBuffTracker_CreateUI() -- Refresh UI
-                
-                -- Maintain position after redrawing
-                if mainFramePos.point then
-                    SpBuffTracker.frame:ClearAllPoints()
-                    SpBuffTracker.frame:SetPoint(mainFramePos.point, mainFramePos.relativeTo, mainFramePos.relativePoint, mainFramePos.x, mainFramePos.y)
-                end
-            end)
-            prevElement = buffCheckbox
-            totalHeight = totalHeight + 25
-        end
-    end
-    
-    -- Set scroll child height based on content
-    scrollChild:SetHeight(math.max(600, totalHeight + 100))
-    
-    SpBuffTracker.settingsFrame = frame
+    -- Debug message
+    DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker: Settings panel created and shown")
+    return frame
 end
 
 -- Toggle settings panel
 function SpBuffTracker_ToggleSettings()
-    SpBuffTracker_CreateSettingsPanel()
-    if SpBuffTracker.settingsFrame:IsVisible() then
+    -- Debug message
+    DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker: Toggling settings panel")
+    
+    if SpBuffTracker.settingsFrame and SpBuffTracker.settingsFrame:IsVisible() then
         SpBuffTracker.settingsFrame:Hide()
+        DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker: Settings panel hidden")
     else
-        SpBuffTracker.settingsFrame:Show()
+        SpBuffTracker_CreateSettingsPanel()
     end
 end

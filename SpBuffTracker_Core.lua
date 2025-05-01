@@ -208,6 +208,7 @@ function SpBuffTracker_OnLoad()
     SlashCmdList["SPBUFFTRACKER"] = SpBuffTracker_SlashCommand
     
     -- Register events
+    SpBuffTracker_CreateUI()
     SpBuffTracker.frame = SpBuffTracker.frame or CreateFrame("Frame")
     SpBuffTracker.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
     SpBuffTracker.frame:RegisterEvent("UNIT_AURA")
@@ -255,5 +256,16 @@ function SpBuffTracker_OnLoad()
     DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker v"..SpBuffTracker.version.." loaded. Type /sbt for help.")
 end
 
+-- WoW 1.12 style event handling
+local loadingFrame = CreateFrame("Frame")
+loadingFrame:RegisterEvent("ADDON_LOADED")
+loadingFrame:SetScript("OnEvent", function()
+    if event == "ADDON_LOADED" and arg1 == "SpBuffTracker" then
+        SpBuffTracker_OnLoad()
+        DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker v"..SpBuffTracker.version.." initialized!")
+        loadingFrame:UnregisterEvent("ADDON_LOADED")
+    end
+end)
+
 -- Initialize when the file is loaded
-SpBuffTracker_EnsureSettings()
+-- SpBuffTracker_EnsureSettings()

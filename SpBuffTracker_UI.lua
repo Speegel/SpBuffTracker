@@ -24,11 +24,6 @@ function SpBuffTracker_CreateUI()
             SpBuffTracker.frame:StopMovingOrSizing()
         end)
         
-        -- Main background
-        local mainBg = SpBuffTracker.frame:CreateTexture(nil, "BACKGROUND")
-        mainBg:SetAllPoints()
-        mainBg:SetTexture(0, 0, 0, 0.5)
-        
         -- Title bar
         local titleBar = CreateFrame("Frame", nil, SpBuffTracker.frame)
         titleBar:SetHeight(20)
@@ -60,7 +55,20 @@ function SpBuffTracker_CreateUI()
         settingsButton:SetScript("OnClick", function()
             SpBuffTracker_ToggleSettings()
         end)
+        
+        -- Create a content frame for all the buff categories/entries
+        SpBuffTracker.contentFrame = CreateFrame("Frame", "SpBuffTrackerContentFrame", SpBuffTracker.frame)
+        SpBuffTracker.contentFrame:SetPoint("TOPLEFT", SpBuffTracker.frame, "TOPLEFT", 0, -20) -- Below title bar
+        SpBuffTracker.contentFrame:SetPoint("TOPRIGHT", SpBuffTracker.frame, "TOPRIGHT", 0, -20)
     end
+    
+    -- Apply scale
+    SpBuffTracker.frame:SetScale(SpBuffTracker.settings.scale)
+    
+    -- Initialize tables
+    if not SpBuffTracker.collapsedCategories then SpBuffTracker.collapsedCategories = {} end
+    if not SpBuffTracker.categoryFrames then SpBuffTracker.categoryFrames = {} end
+    if not SpBuffTracker.buffFrames then SpBuffTracker.buffFrames = {} end
     
     -- Clear existing category frames
     for _, frame in pairs(SpBuffTracker.categoryFrames) do
@@ -78,12 +86,9 @@ function SpBuffTracker_CreateUI()
     end
     SpBuffTracker.buffFrames = {}
     
-    -- Apply scale
-    SpBuffTracker.frame:SetScale(SpBuffTracker.settings.scale)
-    
     -- Create category frames
-    local prevFrame = SpBuffTracker.frame
-    local totalHeight = 20 -- Title bar height
+    local prevFrame = SpBuffTracker.contentFrame
+    local totalHeight = 0
     
     for _, category in ipairs(SpBuffTracker.categories) do
         -- Make sure the category visibility is set (safety check)
@@ -91,11 +96,23 @@ function SpBuffTracker_CreateUI()
             SpBuffTracker.settings.categoryVisibility[category] = true
         end
         
+        -- Make sure the collapsed state is initialized
+        if SpBuffTracker.collapsedCategories[category] == nil then
+            SpBuffTracker.collapsedCategories[category] = false
+        end
+        
         if SpBuffTracker.settings.categoryVisibility[category] then
-            local categoryFrame = CreateFrame("Frame", nil, SpBuffTracker.frame)
+            -- Create category header frame
+            local categoryFrame = CreateFrame("Frame", nil, SpBuffTracker.contentFrame)
             categoryFrame:SetHeight(18)
-            categoryFrame:SetPoint("TOPLEFT", prevFrame, "BOTTOMLEFT", 0, 0)
-            categoryFrame:SetPoint("TOPRIGHT", prevFrame, "BOTTOMRIGHT", 0, 0)
+            
+            if prevFrame == SpBuffTracker.contentFrame then
+                categoryFrame:SetPoint("TOPLEFT", prevFrame, "TOPLEFT", 0, 0)
+                categoryFrame:SetPoint("TOPRIGHT", prevFrame, "TOPRIGHT", 0, 0)
+            else
+                categoryFrame:SetPoint("TOPLEFT", prevFrame, "BOTTOMLEFT", 0, 0)
+                categoryFrame:SetPoint("TOPRIGHT", prevFrame, "BOTTOMRIGHT", 0, 0)
+            end
             
             local categoryBg = categoryFrame:CreateTexture(nil, "BACKGROUND")
             categoryBg:SetAllPoints()
@@ -105,15 +122,31 @@ function SpBuffTracker_CreateUI()
             categoryText:SetPoint("LEFT", categoryFrame, "LEFT", 5, 0)
             categoryText:SetText(category)
             
-            -- Toggle category visibility button
+            -- Toggle category collapse button
             local toggleButton = CreateFrame("Button", nil, categoryFrame)
             toggleButton:SetWidth(14)
             toggleButton:SetHeight(14)
             toggleButton:SetPoint("RIGHT", categoryFrame, "RIGHT", -5, 0)
-            toggleButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-UP")
+            
+            -- Set the appropriate texture based on collapsed state
+            if SpBuffTracker.collapsedCategories[category] then
+                toggleButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-UP")
+            else
+                toggleButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-UP")
+            end
+            
             toggleButton:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight")
+            
+            -- Store the category name directly on the button for use in the click handler
+            toggleButton.categoryName = category
+            
             toggleButton:SetScript("OnClick", function()
-                SpBuffTracker_ToggleCategory(category)
+                local catName = this.categoryName
+                if catName then
+                    SpBuffTracker_ToggleCategory(catName)
+                else
+                    DEFAULT_CHAT_FRAME:AddMessage("SpBuffTracker: Error - category name is nil")
+                end
             end)
             
             SpBuffTracker.categoryFrames[category] = categoryFrame
@@ -128,61 +161,230 @@ function SpBuffTracker_CreateUI()
                 return a.priority < b.priority
             end)
             
-            for i, buffInfo in ipairs(SpBuffTracker.trackedBuffs[category]) do
-                -- Only show if the buff is enabled
-                if buffInfo.enabled then
-                    local buffFrame = CreateFrame("Frame", nil, SpBuffTracker.frame)
-                    buffFrame:SetHeight(20)
+            -- Only create buff entries if category is not collapsed
+            if not SpBuffTracker.collapsedCategories[category] then
+                for i, buffInfo in ipairs(SpBuffTracker.trackedBuffs[category]) do
+                    -- Only show if the buff is enabled
+                    if buffInfo.enabled then
+                        local buffFrame = CreateFrame("Frame", nil, SpBuffTracker.contentFrame)
+                        buffFrame:SetHeight(20)
+                        buffFrame:SetPoint("TOPLEFT", prevFrame, "BOTTOMLEFT", 0, 0)
+                        buffFrame:SetPoint("TOPRIGHT", prevFrame, "BOTTOMRIGHT", 0, 0)
+                        
+                        local buffBg = buffFrame:CreateTexture(nil, "BACKGROUND")
+                        buffBg:SetAllPoints()
+                        
+                        if math.mod(i, 2) == 0 then
+                            buffBg:SetTexture(0.1, 0.1, 0.1, 0.3)
+                        else
+                            buffBg:SetTexture(0, 0, 0, 0.2)
+                        end
+                        
+                        -- Make the buff clickable
+                        local clickableArea = CreateFrame("Button", nil, buffFrame)
+                        clickableArea:SetAllPoints()
+                        clickableArea.buffName = buffInfo.name
+                        clickableArea:SetScript("OnClick", function()
+                            SpBuffTracker_BuffClicked(this.buffName)
+                        end)
+                        clickableArea:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+                        
+                        -- Buff icon
+                        local buffIcon = buffFrame:CreateTexture(nil, "ARTWORK")
+                        buffIcon:SetWidth(16)
+                        buffIcon:SetHeight(16)
+                        buffIcon:SetPoint("LEFT", buffFrame, "LEFT", 5, 0)
+                        buffIcon:SetTexture(buffInfo.texture)
+                        
+                        -- Buff name
+                        local buffName = buffFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                        buffName:SetPoint("LEFT", buffIcon, "RIGHT", 5, 0)
+                        buffName:SetText(buffInfo.name)
+                        
+                        -- Buff timer
+                        local buffTimer = buffFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                        buffTimer:SetPoint("RIGHT", buffFrame, "RIGHT", -5, 0)
+                        buffTimer:SetText("")
+                        
+                        -- Buff status indicator - full frame
+                        local statusTexture = buffFrame:CreateTexture(nil, "OVERLAY")
+                        statusTexture:SetAllPoints(buffFrame)
+                        statusTexture:SetTexture(1, 0, 0, 0.1) -- Red for missing
+                        statusTexture:Hide()
+                        
+                        -- Store references
+                        buffFrame.icon = buffIcon
+                        buffFrame.name = buffName
+                        buffFrame.timer = buffTimer
+                        buffFrame.status = statusTexture
+                        buffFrame.buffInfo = buffInfo
+                        
+                        table.insert(SpBuffTracker.buffFrames[category], buffFrame)
+                        prevFrame = buffFrame
+                        totalHeight = totalHeight + 20
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Set the height of the content frame
+    SpBuffTracker.contentFrame:SetHeight(totalHeight)
+    
+    -- Set the height of the main frame (title bar + content)
+    SpBuffTracker.frame:SetHeight(20 + totalHeight)
+    
+    -- Update buff status
+    SpBuffTracker_UpdateBuffs()
+end
+
+-- Toggle category collapse state with minimal UI updates
+function SpBuffTracker_ToggleCategory(category)
+    -- Toggle the collapsed state
+    SpBuffTracker.collapsedCategories[category] = not SpBuffTracker.collapsedCategories[category]
+    
+    -- Change the toggle button texture
+    if SpBuffTracker.categoryFrames[category] and SpBuffTracker.categoryFrames[category]:GetChildren() then
+        local toggleButton = SpBuffTracker.categoryFrames[category]:GetChildren()
+        if toggleButton then
+            if SpBuffTracker.collapsedCategories[category] then
+                toggleButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-UP")
+            else
+                toggleButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-UP")
+            end
+        end
+    end
+    
+    -- Create or hide the buff frames without rebuilding everything
+    SpBuffTracker_RefreshCategory(category)
+    
+    -- Update the full layout
+    SpBuffTracker_UpdateLayout()
+    
+    -- Update buff statuses
+    SpBuffTracker_UpdateBuffs()
+end
+
+-- Update a specific category's buffs without recreating the entire UI
+function SpBuffTracker_RefreshCategory(category)
+    -- Find the category frame
+    local categoryFrame = SpBuffTracker.categoryFrames[category]
+    if not categoryFrame then return end
+    
+    -- Clear existing buff frames for this category
+    if SpBuffTracker.buffFrames[category] then
+        for _, frame in pairs(SpBuffTracker.buffFrames[category]) do
+            frame:Hide()
+            frame = nil
+        end
+    end
+    SpBuffTracker.buffFrames[category] = {}
+    
+    -- If category is collapsed, we're done
+    if SpBuffTracker.collapsedCategories[category] then
+        return
+    end
+    
+    -- Sort buffs by priority
+    table.sort(SpBuffTracker.trackedBuffs[category], function(a, b)
+        return a.priority < b.priority
+    end)
+    
+    -- Category is expanded, create buff frames
+    local prevFrame = categoryFrame
+    
+    for i, buffInfo in ipairs(SpBuffTracker.trackedBuffs[category]) do
+        -- Only show if the buff is enabled
+        if buffInfo.enabled then
+            local buffFrame = CreateFrame("Frame", nil, SpBuffTracker.contentFrame)
+            buffFrame:SetHeight(20)
+            buffFrame:SetPoint("TOPLEFT", prevFrame, "BOTTOMLEFT", 0, 0)
+            buffFrame:SetPoint("TOPRIGHT", prevFrame, "BOTTOMRIGHT", 0, 0)
+            
+            local buffBg = buffFrame:CreateTexture(nil, "BACKGROUND")
+            buffBg:SetAllPoints()
+            
+            if math.mod(i, 2) == 0 then
+                buffBg:SetTexture(0.1, 0.1, 0.1, 0.3)
+            else
+                buffBg:SetTexture(0, 0, 0, 0.2)
+            end
+            
+            -- Make the buff clickable
+            local clickableArea = CreateFrame("Button", nil, buffFrame)
+            clickableArea:SetAllPoints()
+            clickableArea.buffName = buffInfo.name
+            clickableArea:SetScript("OnClick", function()
+                SpBuffTracker_BuffClicked(this.buffName)
+            end)
+            clickableArea:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+            
+            -- Buff icon
+            local buffIcon = buffFrame:CreateTexture(nil, "ARTWORK")
+            buffIcon:SetWidth(16)
+            buffIcon:SetHeight(16)
+            buffIcon:SetPoint("LEFT", buffFrame, "LEFT", 5, 0)
+            buffIcon:SetTexture(buffInfo.texture)
+            
+            -- Buff name
+            local buffName = buffFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            buffName:SetPoint("LEFT", buffIcon, "RIGHT", 5, 0)
+            buffName:SetText(buffInfo.name)
+            
+            -- Buff timer
+            local buffTimer = buffFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            buffTimer:SetPoint("RIGHT", buffFrame, "RIGHT", -5, 0)
+            buffTimer:SetText("")
+            
+            -- Buff status indicator - full frame
+            local statusTexture = buffFrame:CreateTexture(nil, "OVERLAY")
+            statusTexture:SetAllPoints(buffFrame)
+            statusTexture:SetTexture(1, 0, 0, 0.1) -- Red for missing
+            statusTexture:Hide()
+            
+            -- Store references
+            buffFrame.icon = buffIcon
+            buffFrame.name = buffName
+            buffFrame.timer = buffTimer
+            buffFrame.status = statusTexture
+            buffFrame.buffInfo = buffInfo
+            
+            table.insert(SpBuffTracker.buffFrames[category], buffFrame)
+            prevFrame = buffFrame
+        end
+    end
+end
+
+-- Update the layout without recreating the entire UI
+function SpBuffTracker_UpdateLayout()
+    local prevFrame = SpBuffTracker.contentFrame
+    local totalHeight = 0
+    
+    -- Process each category
+    for _, category in ipairs(SpBuffTracker.categories) do
+        if SpBuffTracker.settings.categoryVisibility[category] and SpBuffTracker.categoryFrames[category] then
+            local categoryFrame = SpBuffTracker.categoryFrames[category]
+            
+            -- Position the category frame
+            categoryFrame:ClearAllPoints()
+            if prevFrame == SpBuffTracker.contentFrame then
+                categoryFrame:SetPoint("TOPLEFT", prevFrame, "TOPLEFT", 0, 0)
+                categoryFrame:SetPoint("TOPRIGHT", prevFrame, "TOPRIGHT", 0, 0)
+            else
+                categoryFrame:SetPoint("TOPLEFT", prevFrame, "BOTTOMLEFT", 0, 0)
+                categoryFrame:SetPoint("TOPRIGHT", prevFrame, "BOTTOMRIGHT", 0, 0)
+            end
+            
+            prevFrame = categoryFrame
+            totalHeight = totalHeight + 18
+            
+            -- If category not collapsed, position buff frames
+            if not SpBuffTracker.collapsedCategories[category] and SpBuffTracker.buffFrames[category] then
+                for _, buffFrame in ipairs(SpBuffTracker.buffFrames[category]) do
+                    buffFrame:ClearAllPoints()
                     buffFrame:SetPoint("TOPLEFT", prevFrame, "BOTTOMLEFT", 0, 0)
                     buffFrame:SetPoint("TOPRIGHT", prevFrame, "BOTTOMRIGHT", 0, 0)
                     
-                    local buffBg = buffFrame:CreateTexture(nil, "BACKGROUND")
-                    buffBg:SetAllPoints()
-                    buffBg:SetTexture(0, 0, 0, 0.3)
-                    
-                    if i % 2 == 0 then
-                        buffBg:SetTexture(0.1, 0.1, 0.1, 0.3)
-                    end
-                    
-                    -- Make the buff clickable
-                    local clickableArea = CreateFrame("Button", nil, buffFrame)
-                    clickableArea:SetAllPoints()
-                    clickableArea:SetScript("OnClick", function()
-                        SpBuffTracker_BuffClicked(buffInfo.name)
-                    end)
-                    clickableArea:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-                    
-                    -- Buff icon
-                    local buffIcon = buffFrame:CreateTexture(nil, "ARTWORK")
-                    buffIcon:SetWidth(16)
-                    buffIcon:SetHeight(16)
-                    buffIcon:SetPoint("LEFT", buffFrame, "LEFT", 5, 0)
-                    buffIcon:SetTexture(buffInfo.texture)
-                    
-                    -- Buff name
-                    local buffName = buffFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-                    buffName:SetPoint("LEFT", buffIcon, "RIGHT", 5, 0)
-                    buffName:SetText(buffInfo.name)
-                    
-                    -- Buff timer
-                    local buffTimer = buffFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-                    buffTimer:SetPoint("RIGHT", buffFrame, "RIGHT", -5, 0)
-                    buffTimer:SetText("")
-                    
-                    -- Buff status indicator - full frame
-                    local statusTexture = buffFrame:CreateTexture(nil, "OVERLAY")
-                    statusTexture:SetAllPoints(buffFrame)
-                    statusTexture:SetTexture(1, 0, 0, 0.1) -- Red for missing
-                    statusTexture:Hide()
-                    
-                    -- Store references
-                    buffFrame.icon = buffIcon
-                    buffFrame.name = buffName
-                    buffFrame.timer = buffTimer
-                    buffFrame.status = statusTexture
-                    buffFrame.buffInfo = buffInfo
-                    
-                    table.insert(SpBuffTracker.buffFrames[category], buffFrame)
                     prevFrame = buffFrame
                     totalHeight = totalHeight + 20
                 end
@@ -190,21 +392,11 @@ function SpBuffTracker_CreateUI()
         end
     end
     
-    -- Set the height of the main frame
-    SpBuffTracker.frame:SetHeight(totalHeight)
+    -- Update the content frame height
+    SpBuffTracker.contentFrame:SetHeight(totalHeight)
     
-    -- Update buff status
-    SpBuffTracker_UpdateBuffs()
-end
-
--- Toggle category visibility
-function SpBuffTracker_ToggleCategory(category)
-    -- Make sure settings are initialized
-    SpBuffTracker_EnsureSettings()
-    
-    -- Toggle the visibility
-    SpBuffTracker.settings.categoryVisibility[category] = not SpBuffTracker.settings.categoryVisibility[category]
-    SpBuffTracker_CreateUI() -- Refresh UI
+    -- Update the main frame height
+    SpBuffTracker.frame:SetHeight(20 + totalHeight)
 end
 
 -- Resets the position of the main frame
